@@ -1,0 +1,16 @@
+services:
+  web:
+    build: .
+    command: go run main.go
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    develop:
+      watch:
+        - action: rebuild
+          path: ./
+          target: /usr/src/app
+  db:
+    image: "postgres:17"
+    env_file: ".env"

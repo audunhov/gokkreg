@@ -1,14 +1,10 @@
 FROM golang:1.23
 
-WORKDIR /app
+WORKDIR /usr/src/app
+COPY go.* .
 
-COPY go.* ./
+RUN go mod tidy
+RUN go mod verify
 RUN go mod download
 
-COPY *.go ./
-
-RUN go build -o /gokkreg
-
-EXPOSE 8080
-
-CMD ["/gokkreg"]
+COPY . .
