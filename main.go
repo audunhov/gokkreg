@@ -45,6 +45,10 @@ func main() {
 		views.HomePage(users).Render(r.Context(), w)
 	})
 
+	mux.HandleFunc("/ny/", func(w http.ResponseWriter, r *http.Request) {
+		views.RegisterPage().Render(r.Context(), w)
+	})
+
 	mux.HandleFunc("/medlem/{id}/", func(w http.ResponseWriter, r *http.Request) {
 		id, err := pathToInt32(r, "id")
 		if err != nil {
@@ -55,6 +59,59 @@ func main() {
 			http.Error(w, "User not found", http.StatusNotFound)
 		}
 		views.MemberPage(user).Render(r.Context(), w)
+
+	})
+
+	mux.HandleFunc("/role/", func(w http.ResponseWriter, r *http.Request) {
+		roles, err := api.ListRoles(r.Context())
+		if err != nil {
+			http.Error(w, "No roles found", 404)
+			return
+		}
+		role_types, err := api.ListRoleTypes(r.Context())
+		if err != nil {
+			http.Error(w, "No roles found", 404)
+			return
+		}
+		users, err := api.ListUsers(r.Context())
+		if err != nil {
+			http.Error(w, "No roles found", 404)
+			return
+		}
+		views.RolesPage(roles, role_types, users).Render(r.Context(), w)
+
+	})
+	mux.HandleFunc("/role_type/", func(w http.ResponseWriter, r *http.Request) {
+
+		role_types, err := api.ListRoleTypes(r.Context())
+		if err != nil {
+			http.Error(w, "Something wrong", 500)
+			return
+		}
+
+		levels := internal.AllLevelValues()
+		views.RoleTypesPage(role_types, levels).Render(r.Context(), w)
+
+	})
+
+	mux.HandleFunc("/role/{id}/", func(w http.ResponseWriter, r *http.Request) {
+		id, err := pathToInt32(r, "id")
+		if err != nil {
+			http.Error(w, ":(", 500)
+		}
+		role, err := api.GetRoleById(r.Context(), id)
+		if err != nil {
+			http.Error(w, "Role not found", http.StatusNotFound)
+		}
+		user, err := api.GetUserById(r.Context(), role.Userid)
+		if err != nil {
+			http.Error(w, "Role not found", http.StatusNotFound)
+		}
+		roleType, err := api.GetRoleTypeById(r.Context(), role.Roletypeid)
+		if err != nil {
+			http.Error(w, "Role not found", http.StatusNotFound)
+		}
+		views.RolePage(user, role, roleType).Render(r.Context(), w)
 
 	})
 
@@ -117,13 +174,20 @@ func main() {
 	})
 
 	v1.HandleFunc("POST /role_type/", func(w http.ResponseWriter, r *http.Request) {
-		var params internal.InsertRoleTypeParams
-		err := json.NewDecoder(r.Body).Decode(&params)
-		if err != nil {
-			http.Error(w, "Could not parse input", http.StatusBadRequest)
+		title := r.FormValue("title")
+		access := r.FormValue("access")
+
+		level := internal.Level(access)
+
+		if !level.Valid() {
+			http.Error(w, "Invalid access level", 400)
 			return
 		}
-		roleType, err := api.InsertRoleType(r.Context(), params)
+
+		roleType, err := api.InsertRoleType(r.Context(), internal.InsertRoleTypeParams{
+			Title:       title,
+			Accesslevel: level,
+		})
 		if err != nil {
 			http.Error(w, "Could not create role type", 500) // TODO: Better status
 		}
@@ -154,13 +218,27 @@ func main() {
 	})
 
 	v1.HandleFunc("POST /role/", func(w http.ResponseWriter, r *http.Request) {
-		var params internal.InsertRoleParams
-		err := json.NewDecoder(r.Body).Decode(&params)
+
+		suid := r.FormValue("user")
+		srt := r.FormValue("role_type")
+
+		uid, err := strconv.ParseInt(suid, 10, 32)
+
 		if err != nil {
-			http.Error(w, "Could not parse input", http.StatusBadRequest)
+			http.Error(w, "invalid user id", 400)
 			return
 		}
-		role, err := api.InsertRole(r.Context(), params)
+
+		rt, err := strconv.ParseInt(srt, 10, 32)
+		if err != nil {
+			http.Error(w, "invalid role type id", 400)
+			return
+		}
+
+		role, err := api.InsertRole(r.Context(), internal.InsertRoleParams{
+			Userid:     int32(uid),
+			Roletypeid: int32(rt),
+		})
 		if err != nil {
 			http.Error(w, "Could not create role", 500) // TODO: Better status
 		}
@@ -183,7 +261,7 @@ func main() {
 
 	mux.Handle("/api/v1/", http.StripPrefix("/api/v1", v1))
 
-	port := ":8080"
+	port := ":8070"
 	slog.Info("Server running at " + port)
 	if err := http.ListenAndServe(port, mux); err != nil {
 		slog.Error("Fatal error", "err", err)

@@ -3,7 +3,28 @@ package views
 import "github.com/audunhov/gokkreg/internal"
 import "fmt"
 
-templ Page(title string) {
+templ Header(title string) {
+	<header class="bg-white">
+		<nav class="mx-auto flex max-w-7xl items-center justify-between gap-x-6 p-6 lg:px-8" aria-label="Global">
+			<div class="flex lg:flex-1">
+				<a href="/" class="-m-1.5 p-1.5">
+					<span class="sr-only">{ title }</span>
+					<img class="h-8 w-auto" src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600" alt=""/>
+				</a>
+			</div>
+			<div class="flex justify-between gap-5">
+				<a href="/" class="inline-block text-sm/6 font-semibold text-gray-900">Medlemmer</a>
+				<a href="/role/" class="inline-block text-sm/6 font-semibold text-gray-900">Verv</a>
+				<a href="/role_type/" class="inline-block text-sm/6 font-semibold text-gray-900">Vervtyper</a>
+			</div>
+			<div class="flex flex-1 items-center justify-end gap-x-6">
+				<a href="#" class="hidden text-sm/6 font-semibold text-gray-900 lg:block">Log in</a>
+			</div>
+		</nav>
+	</header>
+}
+
+templ Page(title string, header bool) {
 	<html>
 		<head>
 			<title>{ title }</title>
@@ -13,25 +34,10 @@ templ Page(title string) {
 			<script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
 		</head>
 		<body>
-			<header class="bg-white">
-				<nav class="mx-auto flex max-w-7xl items-center justify-between gap-x-6 p-6 lg:px-8" aria-label="Global">
-					<div class="flex lg:flex-1">
-						<a href="/" class="-m-1.5 p-1.5">
-							<span class="sr-only">{ title }</span>
-							<img class="h-8 w-auto" src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600" alt=""/>
-						</a>
-					</div>
-					<div class="flex justify-between gap-5">
-						<a href="/" class="inline-block text-sm/6 font-semibold text-gray-900">Medlemmer</a>
-						<a href="/role/" class="inline-block text-sm/6 font-semibold text-gray-900">Verv</a>
-						<a href="/role_type/" class="inline-block text-sm/6 font-semibold text-gray-900">Vervtyper</a>
-					</div>
-					<div class="flex flex-1 items-center justify-end gap-x-6">
-						<a href="#" class="hidden text-sm/6 font-semibold text-gray-900 lg:block">Log in</a>
-					</div>
-				</nav>
-			</header>
-			<main class="max-w-screen-lg m-auto bg-gray-100 p-5 rounded-2xl">
+			if header {
+				@Header(title)
+			}
+			<main class="max-w-screen-lg mx-auto my-5 bg-gray-100 p-5 rounded-2xl">
 				{ children... }
 			</main>
 		</body>
@@ -39,30 +45,20 @@ templ Page(title string) {
 }
 
 templ HomePage(users []internal.User) {
-	@Page("Home") {
+	@Page("Home", true) {
 		<h1 class="text-lg font-semibold">Medlemmer</h1>
-		<ul id="users" class="p-3 rounded-lg border-2 bg-white border-gray-200">
+		<ul id="users" class="p-3 rounded-lg bg-white shadow-sm">
 			for _, user := range users {
 				<li class="even:bg-gray-100 p-2 rounded-md"><a class="text-blue-600 hover:text-blue-400 hover:underline" href={ templ.SafeURL(fmt.Sprintf("/medlem/%d/", user.ID)) }>#{ fmt.Sprint(user.ID) } - { user.Name }</a></li>
 			}
 		</ul>
 		<h2 class="text-md font-semibold">Nytt medlem</h2>
-		<form hx-post="/api/v1/user/" class="grid gap-3">
-			<label for="name">Navn</label>
-			<input id="name" name="name"/>
-			<label for="phone">Tlf</label>
-			<input id="phone" name="phone"/>
-			<label for="email">Epost</label>
-			<input id="email" name="email"/>
-			<label for="birthdate">Bursdag</label>
-			<input id="birthdate" name="birthdate" type="date"/>
-			<button type="submit" class="w-max p-2 bg-blue-600 hover:bg-blue-400 rounded-md cursor-pointer text-white">Ny bruker</button>
-		</form>
+		@UserForm()
 	}
 }
 
 templ UserForm() {
-	<form hx-post="/api/v1/user/">
+	<form hx-post="/api/v1/user/" class="grid gap-3">
 		<label for="name">Navn</label>
 		<input id="name" name="name"/>
 		<label for="phone">Tlf</label>
@@ -71,5 +67,6 @@ templ UserForm() {
 		<input id="email" name="email"/>
 		<label for="birthdate">Bursdag</label>
 		<input id="birthdate" name="birthdate" type="date"/>
+		<button type="submit" class="w-max p-2 bg-blue-600 hover:bg-blue-400 rounded-md cursor-pointer text-white">Ny bruker</button>
 	</form>
 }

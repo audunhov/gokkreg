@@ -54,6 +54,24 @@ func (ns NullLevel) Value() (driver.Value, error) {
 	return string(ns.Level), nil
 }
 
+func (e Level) Valid() bool {
+	switch e {
+	case LevelRead,
+		LevelWrite,
+		LevelAdmin:
+		return true
+	}
+	return false
+}
+
+func AllLevelValues() []Level {
+	return []Level{
+		LevelRead,
+		LevelWrite,
+		LevelAdmin,
+	}
+}
+
 type Role struct {
 	ID         int32
 	Userid     int32

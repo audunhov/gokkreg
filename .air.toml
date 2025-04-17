@@ -1,0 +1,43 @@
+# Config file for [Air](https://github.com/air-verse/air) in TOML format
+
+# Working directory
+# . or absolute path, please note that the directories following must be under root.
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "templ generate && go build -buildvcs=false -o ./tmp/main ."
+# Watch these filename extensions.
+include_ext = ["go", "templ"]
+# Ignore these filename extensions or directories.
+exclude_dir = ["assets", "tmp", "vendor", "frontend/node_modules"]
+# Exclude specific regular expressions.
+exclude_regex = ["_test\\.go"]
+# Exclude unchanged files.
+exclude_unchanged = true
+# Follow symlink for directories
+follow_symlink = true
+# This log file is placed in your tmp_dir.
+log = "air.log"
+# Poll files for changes instead of using fsnotify.
+
+[color]
+# Customize each part's color. If no color found, use the raw app log.
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[misc]
+# Delete tmp directory on exit
+clean_on_exit = true
+
+[screen]
+clear_on_rebuild = true
+keep_scroll = true
+
+[proxy]
+# Enable live-reloading on the browser.
+enabled = true
+proxy_port = 8080
+app_port = 8070

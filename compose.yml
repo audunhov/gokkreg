@@ -1,18 +1,12 @@
 services:
   web:
     build: .
-    command: go run main.go
     ports:
       - "8080:8080"
     depends_on:
       - db
     volumes:
-      - appdata:/data
-    develop:
-      watch:
-        - action: rebuild
-          path: ./
-          target: /app
+      - ./:/app
   db:
     image: "postgres:17"
     env_file: ".env"
@@ -21,4 +15,3 @@ services:
 
 volumes:
   dbdata:
-  appdata:

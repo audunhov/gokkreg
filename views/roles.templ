@@ -1,0 +1,52 @@
+package views
+
+import "github.com/audunhov/gokkreg/internal"
+import "fmt"
+
+templ RolesPage(roles []internal.Role, roleTypes []internal.RoleType, users []internal.User) {
+	@Page("Verv", true) {
+		<ul id="roles">
+			for _, role := range roles {
+				<li>{ fmt.Sprintf("Bruker %d er %d", role.Userid, role.Roletypeid) }</li>
+			}
+		</ul>
+		<form hx-post="/api/v1/role/">
+			<select name="user">
+				for _, user := range users {
+					<option value={ fmt.Sprint(user.ID) }>{ user.Name }</option>
+				}
+			</select>
+			<select name="role_type">
+				for _, rt := range roleTypes {
+					<option value={ fmt.Sprint(rt.ID) }>{ rt.Title }</option>
+				}
+			</select>
+			<button type="submit">Ny rolle</button>
+		</form>
+	}
+}
+
+templ RolePage(user internal.User, role internal.Role, roleType internal.RoleType) {
+	@Page(user.Name, true) {
+		<p>{ user.Name } har vært { roleType.Title } siden { role.Createdat.Time.Format("01.02.2006") }</p>
+	}
+}
+
+templ RoleTypesPage(roleTypes []internal.RoleType, levels []internal.Level) {
+	@Page("Vervtyper", true) {
+		<ul id="roleTypes">
+			for _, rt := range roleTypes {
+				<li>{ rt.Title }</li>
+			}
+		</ul>
+		<form hx-post="/api/v1/role_type/">
+			<input name="title"/>
+			<select name="access">
+				for _, level := range levels {
+					<option value={ fmt.Sprint(level) }>{ fmt.Sprint(level) }</option>
+				}
+			</select>
+			<button type="submit">Ny type</button>
+		</form>
+	}
+}
