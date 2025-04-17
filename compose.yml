@@ -6,11 +6,19 @@ services:
       - "8080:8080"
     depends_on:
       - db
+    volumes:
+      - appdata:/data
     develop:
       watch:
         - action: rebuild
           path: ./
-          target: /usr/src/app
+          target: /app
   db:
     image: "postgres:17"
     env_file: ".env"
+    volumes:
+      - dbdata:/data
+
+volumes:
+  dbdata:
+  appdata:

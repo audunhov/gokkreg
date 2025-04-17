@@ -1,0 +1,16 @@
+package views
+
+import "github.com/audunhov/gokkreg/internal"
+
+templ MemberPage(member internal.User) {
+	@Page(member.Name) {
+		<h1 class="text-2xl">{ member.Name }</h1>
+		if member.Email.Valid {
+			<p>epost: { member.Email.String }</p>
+		}
+		if member.Phone.Valid {
+			<p>tlf: { member.Phone.String }</p>
+		}
+		<p>bursdag: { member.Birthday.Time.Format("02.01.2006") }</p>
+	}
+}

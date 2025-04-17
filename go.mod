@@ -2,7 +2,10 @@ module github.com/audunhov/gokkreg
 
 go 1.23.4
 
-require github.com/jackc/pgx/v5 v5.7.4
+require (
+	github.com/a-h/templ v0.3.857
+	github.com/jackc/pgx/v5 v5.7.4
+)
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
