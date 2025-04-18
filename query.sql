@@ -1,8 +1,20 @@
 -- name: ListUsers :many
 SELECT * FROM users;
 
+-- name: GetUserStats :one
+SELECT
+    COUNT(*) AS current_count,
+    SUM(CASE WHEN CreatedAt <= NOW() - INTERVAL '1 month' THEN 1 ELSE 0 END) AS count_a_month_ago
+FROM users;
+
+-- name: UpdateUserPass :one
+UPDATE users SET Password=$2 WHERE Id = $1 RETURNING *; 
+
 -- name: GetUserById :one
 SELECT * FROM users WHERE Id = $1 LIMIT 1;
+
+-- name: GetUserByEmail :one
+SELECT * FROM users WHERE Email = $1 LIMIT 1;
 
 -- name: SearchUsers :many
 SELECT * FROM users WHERE Name ILIKE $1 OR Email ILIKE $1 OR Phone ILIKE 1;
@@ -12,6 +24,27 @@ INSERT INTO users (Name, Email, Phone, Birthday) VALUES ($1,$2,$3,$4) RETURNING 
 
 -- name: DeleteUser :exec
 DELETE FROM users WHERE Id = $1;
+
+-- name: NewSession :one
+INSERT INTO sessions (UserId, ExpiresAt, IpAddress, UserAgent) VALUES ($1, $2, $3, $4) RETURNING *;
+
+-- name: GetSessionsForUser :many
+SELECT * FROM sessions
+WHERE UserId = $1
+  AND IsActive = TRUE
+  AND ExpiresAt > NOW();
+
+-- name: GetSessionById :one
+SELECT * FROM sessions
+WHERE Id = $1
+AND IsActive = TRUE
+LIMIT 1;
+
+-- name: SetSessionLastActive :one
+UPDATE sessions SET LastSeenAt = NOW() WHERE Id = $1 AND IsActive = TRUE RETURNING *;
+
+-- name: InvalidateSession :exec
+UPDATE sessions SET IsActive = FALSE WHERE Id = $1;
 
 -- name: ListRoleTypes :many
 SELECT * FROM role_types;

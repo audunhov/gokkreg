@@ -3,7 +3,7 @@ package views
 import "github.com/audunhov/gokkreg/internal"
 import "fmt"
 
-templ Header(title string) {
+templ Header(title string, user internal.User) {
 	<header class="bg-white">
 		<nav class="mx-auto flex max-w-7xl items-center justify-between gap-x-6 p-6 lg:px-8" aria-label="Global">
 			<div class="flex lg:flex-1">
@@ -13,18 +13,19 @@ templ Header(title string) {
 				</a>
 			</div>
 			<div class="flex justify-between gap-5">
-				<a href="/" class="inline-block text-sm/6 font-semibold text-gray-900">Medlemmer</a>
+				<a href="/members/" class="inline-block text-sm/6 font-semibold text-gray-900">Medlemmer</a>
 				<a href="/role/" class="inline-block text-sm/6 font-semibold text-gray-900">Verv</a>
 				<a href="/role_type/" class="inline-block text-sm/6 font-semibold text-gray-900">Vervtyper</a>
 			</div>
 			<div class="flex flex-1 items-center justify-end gap-x-6">
-				<a href="#" class="hidden text-sm/6 font-semibold text-gray-900 lg:block">Log in</a>
+				<span>Logget inn som: { user.Name }</span>
+				<a href="/logout/" class="hidden text-sm/6 font-semibold text-gray-900 lg:block">Logg ut</a>
 			</div>
 		</nav>
 	</header>
 }
 
-templ Page(title string, header bool) {
+templ OpenPage(title string) {
 	<html>
 		<head>
 			<title>{ title }</title>
@@ -34,26 +35,78 @@ templ Page(title string, header bool) {
 			<script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
 		</head>
 		<body>
-			if header {
-				@Header(title)
-			}
-			<main class="max-w-screen-lg mx-auto my-5 bg-gray-100 p-5 rounded-2xl">
+			<main class="max-w-screen-lg mx-auto px-5">
 				{ children... }
 			</main>
 		</body>
 	</html>
 }
 
-templ HomePage(users []internal.User) {
-	@Page("Home", true) {
-		<h1 class="text-lg font-semibold">Medlemmer</h1>
-		<ul id="users" class="p-3 rounded-lg bg-white shadow-sm">
-			for _, user := range users {
-				<li class="even:bg-gray-100 p-2 rounded-md"><a class="text-blue-600 hover:text-blue-400 hover:underline" href={ templ.SafeURL(fmt.Sprintf("/medlem/%d/", user.ID)) }>#{ fmt.Sprint(user.ID) } - { user.Name }</a></li>
-			}
-		</ul>
-		<h2 class="text-md font-semibold">Nytt medlem</h2>
-		@UserForm()
+templ Page(title string, user internal.User) {
+	<html>
+		<head>
+			<title>{ title }</title>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+			<script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+		</head>
+		<body>
+			@Header(title, user)
+			<main class="max-w-screen-lg mx-auto px-5">
+				{ children... }
+			</main>
+		</body>
+	</html>
+}
+
+templ HomePage(users []internal.User, user internal.User) {
+	@Page("Home", user) {
+		<div>
+			<div class="sm:flex sm:items-center">
+				<div class="sm:flex-auto">
+					<h1 class="text-base font-semibold text-gray-900">Medlemmer</h1>
+					<p class="mt-2 text-sm text-gray-700">Alle medlemmer i Gamle Oslo Kaffe og Koding</p>
+				</div>
+				<div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+					<button type="button" class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Nytt medlem</button>
+				</div>
+			</div>
+			<div class="mt-8 flow-root">
+				<div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+					<div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+						<table class="min-w-full divide-y divide-gray-300">
+							<thead>
+								<tr>
+									<th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-3">Navn</th>
+									<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Telefon</th>
+									<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Email</th>
+									<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Bursdag</th>
+									<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Innmeldt</th>
+									<th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-3">
+										<span class="sr-only">Edit</span>
+									</th>
+								</tr>
+							</thead>
+							<tbody class="bg-white">
+								for _, user := range users {
+									<tr class="even:bg-gray-50">
+										<td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-3">{ user.Name }</td>
+										<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ user.Phone.String }</td>
+										<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ user.Email }</td>
+										<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ user.Birthday.Time.Format("01.02.2006") }</td>
+										<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ user.Createdat.Time.Format("01.02.2006") }</td>
+										<td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-3">
+											<a href={ templ.SafeURL(fmt.Sprintf("/medlem/%d/", user.ID)) } class="text-indigo-600 hover:text-indigo-900">Profil<span class="sr-only">, { user.Name }</span></a>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
 	}
 }
 

@@ -6,9 +6,9 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-cmd = "templ generate && go build -buildvcs=false -o ./tmp/main ."
+cmd = "go build -buildvcs=false -o ./tmp/main ."
 # Watch these filename extensions.
-include_ext = ["go", "templ"]
+include_ext = ["go"]
 # Ignore these filename extensions or directories.
 exclude_dir = ["assets", "tmp", "vendor", "frontend/node_modules"]
 # Exclude specific regular expressions.

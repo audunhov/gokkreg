@@ -7,6 +7,7 @@ package internal
 import (
 	"database/sql/driver"
 	"fmt"
+	"net/netip"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -76,22 +77,33 @@ type Role struct {
 	ID         int32
 	Userid     int32
 	Roletypeid int32
-	Createdat  pgtype.Timestamp
+	Createdat  pgtype.Timestamptz
 }
 
 type RoleType struct {
 	ID          int32
 	Title       string
-	Createdat   pgtype.Timestamp
+	Createdat   pgtype.Timestamptz
 	Accesslevel Level
+}
+
+type Session struct {
+	ID         pgtype.UUID
+	Userid     int32
+	Createdat  pgtype.Timestamptz
+	Lastseenat pgtype.Timestamptz
+	Expiresat  pgtype.Timestamptz
+	Ipaddress  *netip.Addr
+	Useragent  pgtype.Text
+	Isactive   bool
 }
 
 type User struct {
 	ID        int32
 	Name      string
-	Email     pgtype.Text
+	Email     string
 	Phone     pgtype.Text
 	Password  pgtype.Text
 	Birthday  pgtype.Date
-	Createdat pgtype.Timestamp
+	Createdat pgtype.Timestamptz
 }

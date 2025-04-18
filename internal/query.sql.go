@@ -7,6 +7,7 @@ package internal
 
 import (
 	"context"
+	"net/netip"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -70,6 +71,84 @@ func (q *Queries) GetRoleTypeById(ctx context.Context, id int32) (RoleType, erro
 	return i, err
 }
 
+const getSessionById = `-- name: GetSessionById :one
+SELECT id, userid, createdat, lastseenat, expiresat, ipaddress, useragent, isactive FROM sessions
+WHERE Id = $1
+AND IsActive = TRUE
+LIMIT 1
+`
+
+func (q *Queries) GetSessionById(ctx context.Context, id pgtype.UUID) (Session, error) {
+	row := q.db.QueryRow(ctx, getSessionById, id)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.Userid,
+		&i.Createdat,
+		&i.Lastseenat,
+		&i.Expiresat,
+		&i.Ipaddress,
+		&i.Useragent,
+		&i.Isactive,
+	)
+	return i, err
+}
+
+const getSessionsForUser = `-- name: GetSessionsForUser :many
+SELECT id, userid, createdat, lastseenat, expiresat, ipaddress, useragent, isactive FROM sessions
+WHERE UserId = $1
+  AND IsActive = TRUE
+  AND ExpiresAt > NOW()
+`
+
+func (q *Queries) GetSessionsForUser(ctx context.Context, userid int32) ([]Session, error) {
+	rows, err := q.db.Query(ctx, getSessionsForUser, userid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Session
+	for rows.Next() {
+		var i Session
+		if err := rows.Scan(
+			&i.ID,
+			&i.Userid,
+			&i.Createdat,
+			&i.Lastseenat,
+			&i.Expiresat,
+			&i.Ipaddress,
+			&i.Useragent,
+			&i.Isactive,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, name, email, phone, password, birthday, createdat FROM users WHERE Email = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Phone,
+		&i.Password,
+		&i.Birthday,
+		&i.Createdat,
+	)
+	return i, err
+}
+
 const getUserById = `-- name: GetUserById :one
 SELECT id, name, email, phone, password, birthday, createdat FROM users WHERE Id = $1 LIMIT 1
 `
@@ -86,6 +165,25 @@ func (q *Queries) GetUserById(ctx context.Context, id int32) (User, error) {
 		&i.Birthday,
 		&i.Createdat,
 	)
+	return i, err
+}
+
+const getUserStats = `-- name: GetUserStats :one
+SELECT
+    COUNT(*) AS current_count,
+    SUM(CASE WHEN CreatedAt <= NOW() - INTERVAL '1 month' THEN 1 ELSE 0 END) AS count_a_month_ago
+FROM users
+`
+
+type GetUserStatsRow struct {
+	CurrentCount   int64
+	CountAMonthAgo int64
+}
+
+func (q *Queries) GetUserStats(ctx context.Context) (GetUserStatsRow, error) {
+	row := q.db.QueryRow(ctx, getUserStats)
+	var i GetUserStatsRow
+	err := row.Scan(&i.CurrentCount, &i.CountAMonthAgo)
 	return i, err
 }
 
@@ -137,7 +235,7 @@ INSERT INTO users (Name, Email, Phone, Birthday) VALUES ($1,$2,$3,$4) RETURNING 
 
 type InsertUserParams struct {
 	Name     string
-	Email    pgtype.Text
+	Email    string
 	Phone    pgtype.Text
 	Birthday pgtype.Date
 }
@@ -160,6 +258,15 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (User, e
 		&i.Createdat,
 	)
 	return i, err
+}
+
+const invalidateSession = `-- name: InvalidateSession :exec
+UPDATE sessions SET IsActive = FALSE WHERE Id = $1
+`
+
+func (q *Queries) InvalidateSession(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, invalidateSession, id)
+	return err
 }
 
 const listRoleTypes = `-- name: ListRoleTypes :many
@@ -252,6 +359,38 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const newSession = `-- name: NewSession :one
+INSERT INTO sessions (UserId, ExpiresAt, IpAddress, UserAgent) VALUES ($1, $2, $3, $4) RETURNING id, userid, createdat, lastseenat, expiresat, ipaddress, useragent, isactive
+`
+
+type NewSessionParams struct {
+	Userid    int32
+	Expiresat pgtype.Timestamptz
+	Ipaddress *netip.Addr
+	Useragent pgtype.Text
+}
+
+func (q *Queries) NewSession(ctx context.Context, arg NewSessionParams) (Session, error) {
+	row := q.db.QueryRow(ctx, newSession,
+		arg.Userid,
+		arg.Expiresat,
+		arg.Ipaddress,
+		arg.Useragent,
+	)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.Userid,
+		&i.Createdat,
+		&i.Lastseenat,
+		&i.Expiresat,
+		&i.Ipaddress,
+		&i.Useragent,
+		&i.Isactive,
+	)
+	return i, err
+}
+
 const searchUsers = `-- name: SearchUsers :many
 SELECT id, name, email, phone, password, birthday, createdat FROM users WHERE Name ILIKE $1 OR Email ILIKE $1 OR Phone ILIKE 1
 `
@@ -282,4 +421,48 @@ func (q *Queries) SearchUsers(ctx context.Context, name string) ([]User, error) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const setSessionLastActive = `-- name: SetSessionLastActive :one
+UPDATE sessions SET LastSeenAt = NOW() WHERE Id = $1 AND IsActive = TRUE RETURNING id, userid, createdat, lastseenat, expiresat, ipaddress, useragent, isactive
+`
+
+func (q *Queries) SetSessionLastActive(ctx context.Context, id pgtype.UUID) (Session, error) {
+	row := q.db.QueryRow(ctx, setSessionLastActive, id)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.Userid,
+		&i.Createdat,
+		&i.Lastseenat,
+		&i.Expiresat,
+		&i.Ipaddress,
+		&i.Useragent,
+		&i.Isactive,
+	)
+	return i, err
+}
+
+const updateUserPass = `-- name: UpdateUserPass :one
+UPDATE users SET Password=$2 WHERE Id = $1 RETURNING id, name, email, phone, password, birthday, createdat
+`
+
+type UpdateUserPassParams struct {
+	ID       int32
+	Password pgtype.Text
+}
+
+func (q *Queries) UpdateUserPass(ctx context.Context, arg UpdateUserPassParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserPass, arg.ID, arg.Password)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Phone,
+		&i.Password,
+		&i.Birthday,
+		&i.Createdat,
+	)
+	return i, err
 }
