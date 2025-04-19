@@ -39,6 +39,41 @@ func CheckPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
+func (api *API) getUser(r *http.Request) (internal.User, error) {
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		return internal.User{}, err
+	}
+
+	var uuid pgtype.UUID
+	err = uuid.Scan(cookie.Value)
+	uuid.Valid = err == nil
+
+	session, err := api.GetSessionById(r.Context(), uuid)
+	if err != nil {
+		return internal.User{}, err
+	}
+	user, err := api.GetUserById(r.Context(), session.Userid)
+	if err != nil {
+		return internal.User{}, err
+	}
+	return user, nil
+}
+
+func (api *API) authHandler(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := api.getUser(r)
+
+		if err != nil {
+			http.Redirect(w, r, "/login/", http.StatusTemporaryRedirect)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), "user", user)
+		handler(w, r.WithContext(ctx))
+	}
+}
+
 func main() {
 
 	ctx := context.Background()
@@ -51,28 +86,9 @@ func main() {
 	api := API{internal.New(db)}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", api.authHandler(func(w http.ResponseWriter, r *http.Request) {
+		user := r.Context().Value("user").(internal.User)
 
-		cookie, err := r.Cookie("session_id")
-		if err != nil {
-			http.Redirect(w, r, "/login/", http.StatusTemporaryRedirect)
-			return
-		}
-
-		var uuid pgtype.UUID
-		err = uuid.Scan(cookie.Value)
-		uuid.Valid = err == nil
-
-		session, err := api.GetSessionById(r.Context(), uuid)
-		if err != nil {
-			http.Redirect(w, r, "/login/", http.StatusTemporaryRedirect)
-			return
-		}
-		user, err := api.GetUserById(r.Context(), session.Userid)
-		if err != nil {
-			http.Redirect(w, r, "/login/", http.StatusTemporaryRedirect)
-			return
-		}
 		stats, err := api.GetUserStats(r.Context())
 		if err != nil {
 			http.Error(w, "Can't load stats", 500)
@@ -80,28 +96,16 @@ func main() {
 		}
 
 		views.DashboardPage(stats.CurrentCount, stats.CountAMonthAgo, user).Render(r.Context(), w)
-	})
-	mux.HandleFunc("/members/", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("/members/", api.authHandler(func(w http.ResponseWriter, r *http.Request) {
 		users, err := api.ListUsers(r.Context())
 		if err != nil {
 			http.Error(w, "Could not list users", 500)
 			return
 		}
-		cookie, err := r.Cookie("session_id")
-		if err != nil {
-			http.Redirect(w, r, "/login/", http.StatusUnauthorized)
-			return
-		}
-
-		var uuid pgtype.UUID
-		err = uuid.Scan(cookie.Value)
-		uuid.Valid = err == nil
-
-		session, err := api.GetSessionById(r.Context(), uuid)
-		user, err := api.GetUserById(r.Context(), session.Userid)
-
+		user := r.Context().Value("user").(internal.User)
 		views.HomePage(users, user).Render(r.Context(), w)
-	})
+	}))
 
 	mux.HandleFunc("/ny/", func(w http.ResponseWriter, r *http.Request) {
 		views.RegisterPage().Render(r.Context(), w)
@@ -141,7 +145,7 @@ func main() {
 		views.LogoutPage().Render(r.Context(), w)
 	})
 
-	mux.HandleFunc("/medlem/{id}/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/medlem/{id}/", api.authHandler(func(w http.ResponseWriter, r *http.Request) {
 		id, err := pathToInt32(r, "id")
 		if err != nil {
 			http.Error(w, ":(", 500)
@@ -152,9 +156,9 @@ func main() {
 		}
 		views.MemberPage(user).Render(r.Context(), w)
 
-	})
+	}))
 
-	mux.HandleFunc("/role/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/role/", api.authHandler(func(w http.ResponseWriter, r *http.Request) {
 		roles, rerr := api.ListRoles(r.Context())
 		role_types, rterr := api.ListRoleTypes(r.Context())
 		users, uerr := api.ListUsers(r.Context())
@@ -163,48 +167,26 @@ func main() {
 			http.Error(w, "Could not load errors:"+err.Error(), 404)
 			return
 		}
-		cookie, err := r.Cookie("session_id")
-		if err != nil {
-			http.Redirect(w, r, "/login/", http.StatusUnauthorized)
-			return
-		}
 
-		var uuid pgtype.UUID
-		err = uuid.Scan(cookie.Value)
-		uuid.Valid = err == nil
-
-		session, err := api.GetSessionById(r.Context(), uuid)
-		user, err := api.GetUserById(r.Context(), session.Userid)
-
+		user := r.Context().Value("user").(internal.User)
 		views.RolesPage(roles, role_types, users, user).Render(r.Context(), w)
 
-	})
-	mux.HandleFunc("/role_type/", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("/role_type/", api.authHandler(func(w http.ResponseWriter, r *http.Request) {
 
 		role_types, err := api.ListRoleTypes(r.Context())
 		if err != nil {
 			http.Error(w, "Something wrong", 500)
 			return
 		}
-		cookie, err := r.Cookie("session_id")
-		if err != nil {
-			http.Redirect(w, r, "/login/", http.StatusUnauthorized)
-			return
-		}
 
-		var uuid pgtype.UUID
-		err = uuid.Scan(cookie.Value)
-		uuid.Valid = err == nil
-
-		session, err := api.GetSessionById(r.Context(), uuid)
-		user, err := api.GetUserById(r.Context(), session.Userid)
-
+		user := r.Context().Value("user").(internal.User)
 		levels := internal.AllLevelValues()
 		views.RoleTypesPage(role_types, levels, user).Render(r.Context(), w)
 
-	})
+	}))
 
-	mux.HandleFunc("/role/{id}/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/role/{id}/", api.authHandler(func(w http.ResponseWriter, r *http.Request) {
 		id, err := pathToInt32(r, "id")
 		if err != nil {
 			http.Error(w, ":(", 500)
@@ -223,7 +205,7 @@ func main() {
 		}
 		views.RolePage(user, role, roleType).Render(r.Context(), w)
 
-	})
+	}))
 
 	v1 := http.NewServeMux()
 	v1.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
