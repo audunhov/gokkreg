@@ -443,6 +443,42 @@ func (q *Queries) SetSessionLastActive(ctx context.Context, id pgtype.UUID) (Ses
 	return i, err
 }
 
+const updateUser = `-- name: UpdateUser :one
+UPDATE users SET
+Name = $2, Email = $3, Phone = $4, Birthday = $5
+WHERE Id = $1
+RETURNING id, name, email, phone, password, birthday, createdat
+`
+
+type UpdateUserParams struct {
+	ID       int32
+	Name     string
+	Email    string
+	Phone    pgtype.Text
+	Birthday pgtype.Date
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUser,
+		arg.ID,
+		arg.Name,
+		arg.Email,
+		arg.Phone,
+		arg.Birthday,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Phone,
+		&i.Password,
+		&i.Birthday,
+		&i.Createdat,
+	)
+	return i, err
+}
+
 const updateUserPass = `-- name: UpdateUserPass :one
 UPDATE users SET Password=$2 WHERE Id = $1 RETURNING id, name, email, phone, password, birthday, createdat
 `

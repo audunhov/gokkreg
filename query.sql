@@ -22,6 +22,12 @@ SELECT * FROM users WHERE Name ILIKE $1 OR Email ILIKE $1 OR Phone ILIKE 1;
 -- name: InsertUser :one
 INSERT INTO users (Name, Email, Phone, Birthday) VALUES ($1,$2,$3,$4) RETURNING *;
 
+-- name: UpdateUser :one
+UPDATE users SET
+Name = $2, Email = $3, Phone = $4, Birthday = $5
+WHERE Id = $1
+RETURNING *;
+
 -- name: DeleteUser :exec
 DELETE FROM users WHERE Id = $1;
 

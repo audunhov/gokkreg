@@ -97,7 +97,7 @@ func GetAuthUser(ctx context.Context) internal.User {
 
 func main() {
 	ctx := context.Background()
-	db, err := pgx.Connect(ctx, "postgresql://postgres:postgres@db/postgres")
+	db, err := pgx.Connect(ctx, "postgresql://postgres:postgres@0.0.0.0:5432/postgres")
 	if err != nil {
 		log.Fatal("Could not connect to db:", err)
 	}
@@ -235,6 +235,39 @@ func main() {
 			return
 		}
 		json.NewEncoder(w).Encode(users)
+	})
+
+	v1.HandleFunc("PUT /user/{id}/", func(w http.ResponseWriter, r *http.Request) {
+
+		id, err := pathToInt32(r, "id")
+
+		if err != nil {
+			http.Error(w, "Invalid id format", 400)
+			return
+		}
+
+		name := r.FormValue("name")
+		email := r.FormValue("email")
+		phone := r.FormValue("phone-number")
+		birthday := r.FormValue("birthdate")
+
+		bd, err := time.Parse("2006-01-02", birthday)
+
+		user, err := api.UpdateUser(r.Context(), internal.UpdateUserParams{
+			ID:       id,
+			Name:     name,
+			Email:    email,
+			Phone:    pgtype.Text{String: phone, Valid: phone != ""},
+			Birthday: pgtype.Date{Time: bd, Valid: err == nil},
+		})
+
+		if err != nil {
+			http.Error(w, "Could not update user: "+err.Error(), 500)
+			return
+		}
+
+		json.NewEncoder(w).Encode(user)
+
 	})
 
 	v1.HandleFunc("POST /login/", func(w http.ResponseWriter, r *http.Request) {
@@ -394,6 +427,7 @@ func main() {
 		if err != nil {
 			http.Error(w, "Could not delete user", 500) // TODO: Better status
 		}
+		w.Header().Set("HX-Redirect", "/")
 		w.Write([]byte("Deleted!"))
 	})
 
