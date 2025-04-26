@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
 	Birthday DATE NOT NULL,
 	CreatedAt TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
-CREATE INDEX idx_users_email ON sessions(Email);
+CREATE INDEX IF NOT EXISTS idx_users_email ON sessions(Email);
 
 CREATE TYPE LEVEL as ENUM ('read', 'write', 'admin');
 
@@ -22,10 +22,12 @@ CREATE TABLE IF NOT EXISTS roles (
 	Id SERIAL PRIMARY KEY,
 	UserId INTEGER NOT NULL REFERENCES users(Id) ON DELETE CASCADE,
 	RoleTypeId INTEGER NOT NULL REFERENCES role_types(Id) ON DELETE CASCADE,
-	CreatedAt TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+	CreatedAt TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 );
-CREATE INDEX idx_roles_user_id ON sessions(UserId);
-CREATE INDEX idx_roles_role_type_id ON sessions(RoleTypeId);
+CREATE INDEX IF NOT EXISTS idx_roles_user_id ON sessions(UserId);
+CREATE INDEX IF NOT EXISTS idx_roles_role_type_id ON sessions(RoleTypeId);
+
+ALTER TABLE roles ADD IF NOT EXISTS FinishedAt TIMESTAMP WITH TIME ZONE;
 
 CREATE TABLE IF NOT EXISTS sessions (
 	Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -37,5 +39,5 @@ CREATE TABLE IF NOT EXISTS sessions (
 	UserAgent TEXT,
 	IsActive BOOLEAN NOT NULL DEFAULT TRUE
 );
-CREATE INDEX idx_sessions_user_id ON sessions(UserId);
-CREATE INDEX idx_sessions_expires_at ON sessions(ExpiresAt);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(UserId);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(ExpiresAt);

@@ -78,6 +78,7 @@ type Role struct {
 	Userid     int32
 	Roletypeid int32
 	Createdat  pgtype.Timestamptz
+	Finishedat pgtype.Timestamptz
 }
 
 type RoleType struct {

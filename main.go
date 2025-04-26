@@ -172,7 +172,23 @@ func main() {
 		if err != nil {
 			http.Error(w, "User not found", http.StatusNotFound)
 		}
-		views.MemberPage(user).Render(r.Context(), w)
+
+		roles, err := api.ListRolesWithTypesForUser(r.Context(), id)
+
+		views.MemberPage(user, roles).Render(r.Context(), w)
+
+	}))
+	mux.HandleFunc("/medlem/{id}/edit/", api.authHandler(func(w http.ResponseWriter, r *http.Request) {
+		id, err := pathToInt32(r, "id")
+		if err != nil {
+			http.Error(w, ":(", 500)
+		}
+		user, err := api.GetUserById(r.Context(), id)
+		if err != nil {
+			http.Error(w, "User not found", http.StatusNotFound)
+		}
+
+		views.EditMemberForm(user).Render(r.Context(), w)
 
 	}))
 
@@ -266,7 +282,7 @@ func main() {
 			return
 		}
 
-		json.NewEncoder(w).Encode(user)
+		views.Personalia(user).Render(r.Context(), w)
 
 	})
 

@@ -67,6 +67,9 @@ DELETE FROM role_types WHERE Id = $1;
 -- name: ListRoles :many
 SELECT * FROM roles;
 
+-- name: ListRolesWithTypesForUser :many
+SELECT r.*, rt.* FROM roles as r INNER JOIN role_types as rt ON r.RoleTypeId = rt.Id AND r.UserId = $1; 
+
 -- name: GetRoleById :one
 SELECT * FROM roles WHERE Id = $1 LIMIT 1;
 

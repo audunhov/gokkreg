@@ -40,7 +40,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 }
 
 const getRoleById = `-- name: GetRoleById :one
-SELECT id, userid, roletypeid, createdat FROM roles WHERE Id = $1 LIMIT 1
+SELECT id, userid, roletypeid, createdat, finishedat FROM roles WHERE Id = $1 LIMIT 1
 `
 
 func (q *Queries) GetRoleById(ctx context.Context, id int32) (Role, error) {
@@ -51,6 +51,7 @@ func (q *Queries) GetRoleById(ctx context.Context, id int32) (Role, error) {
 		&i.Userid,
 		&i.Roletypeid,
 		&i.Createdat,
+		&i.Finishedat,
 	)
 	return i, err
 }
@@ -188,7 +189,7 @@ func (q *Queries) GetUserStats(ctx context.Context) (GetUserStatsRow, error) {
 }
 
 const insertRole = `-- name: InsertRole :one
-INSERT INTO roles (UserId, RoleTypeId) VALUES ($1, $2) RETURNING id, userid, roletypeid, createdat
+INSERT INTO roles (UserId, RoleTypeId) VALUES ($1, $2) RETURNING id, userid, roletypeid, createdat, finishedat
 `
 
 type InsertRoleParams struct {
@@ -204,6 +205,7 @@ func (q *Queries) InsertRole(ctx context.Context, arg InsertRoleParams) (Role, e
 		&i.Userid,
 		&i.Roletypeid,
 		&i.Createdat,
+		&i.Finishedat,
 	)
 	return i, err
 }
@@ -299,7 +301,7 @@ func (q *Queries) ListRoleTypes(ctx context.Context) ([]RoleType, error) {
 }
 
 const listRoles = `-- name: ListRoles :many
-SELECT id, userid, roletypeid, createdat FROM roles
+SELECT id, userid, roletypeid, createdat, finishedat FROM roles
 `
 
 func (q *Queries) ListRoles(ctx context.Context) ([]Role, error) {
@@ -316,6 +318,53 @@ func (q *Queries) ListRoles(ctx context.Context) ([]Role, error) {
 			&i.Userid,
 			&i.Roletypeid,
 			&i.Createdat,
+			&i.Finishedat,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRolesWithTypesForUser = `-- name: ListRolesWithTypesForUser :many
+SELECT r.id, r.userid, r.roletypeid, r.createdat, r.finishedat, rt.id, rt.title, rt.createdat, rt.accesslevel FROM roles as r INNER JOIN role_types as rt ON r.RoleTypeId = rt.Id AND r.UserId = $1
+`
+
+type ListRolesWithTypesForUserRow struct {
+	ID          int32
+	Userid      int32
+	Roletypeid  int32
+	Createdat   pgtype.Timestamptz
+	Finishedat  pgtype.Timestamptz
+	ID_2        int32
+	Title       string
+	Createdat_2 pgtype.Timestamptz
+	Accesslevel Level
+}
+
+func (q *Queries) ListRolesWithTypesForUser(ctx context.Context, userid int32) ([]ListRolesWithTypesForUserRow, error) {
+	rows, err := q.db.Query(ctx, listRolesWithTypesForUser, userid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRolesWithTypesForUserRow
+	for rows.Next() {
+		var i ListRolesWithTypesForUserRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Userid,
+			&i.Roletypeid,
+			&i.Createdat,
+			&i.Finishedat,
+			&i.ID_2,
+			&i.Title,
+			&i.Createdat_2,
+			&i.Accesslevel,
 		); err != nil {
 			return nil, err
 		}
