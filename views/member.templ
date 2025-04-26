@@ -4,7 +4,7 @@ import "github.com/audunhov/gokkreg/internal"
 import "fmt"
 
 templ MemberPage(member internal.User) {
-	@Page(member.Name, member) {
+	@Page(member.Name) {
 		<h1 class="text-2xl">{ member.Name }</h1>
 		<p>epost: { member.Email }</p>
 		if member.Phone.Valid {

@@ -6,6 +6,19 @@ import "reflect"
 
 type TableConfig map[string]string
 
+func levelString(level internal.Level) string {
+	switch level {
+	case internal.LevelRead:
+		return "Lese"
+	case internal.LevelWrite:
+		return "Skrive"
+	case internal.LevelAdmin:
+		return "Administrator"
+	}
+
+	return "Ukjent"
+}
+
 func getField[T any](v *T, field string) string {
 	r := reflect.ValueOf(v)
 	f := reflect.Indirect(r).FieldByName(field)
@@ -57,7 +70,7 @@ func find[T any](slice []T, predicate func(val T) bool) *T {
 	return nil
 }
 
-templ RolesPage(roles []internal.Role, roleTypes []internal.RoleType, users []internal.User, user internal.User) {
+templ RolesPage(roles []internal.Role, roleTypes []internal.RoleType, users []internal.User) {
 	{{
 rows := make([]RolesRow, len(roles))
 for i, role := range roles {
@@ -77,7 +90,7 @@ for i, role := range roles {
 
 }
 	}}
-	@Page("Verv", user) {
+	@Page("Verv") {
 		<div>
 			<div class="sm:flex sm:items-center">
 				<div class="sm:flex-auto">
@@ -136,17 +149,13 @@ for i, role := range roles {
 }
 
 templ RolePage(user internal.User, role internal.Role, roleType internal.RoleType) {
-	@Page(user.Name, user) {
+	@Page(user.Name) {
 		<p>{ user.Name } har vært { roleType.Title } siden { role.Createdat.Time.Format("01.02.2006") }</p>
 	}
 }
 
-templ RoleTypesPage(roleTypes []internal.RoleType, levels []internal.Level, user internal.User) {
-	{{conf := make(TableConfig)
-conf["Title"] = "Tittel"
-conf["Accesslevel"] = "Tilgangsnivå"
-	}}
-	@Page("Vervtyper", user) {
+templ RoleTypesPage(roleTypes []internal.RoleType, levels []internal.Level) {
+	@Page("Vervtyper") {
 		<div class="sm:flex sm:items-center">
 			<div class="sm:flex-auto">
 				<h1 class="text-base font-semibold text-gray-900">Vervtyper</h1>
@@ -156,31 +165,52 @@ conf["Accesslevel"] = "Tilgangsnivå"
 				<button type="button" class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Ny vervtype</button>
 			</div>
 		</div>
-		@Table(roleTypes, conf)
-		<form hx-post="/api/v1/role_type/">
-			<fieldset class="border border-gray-300 rounded-md p-3 space-y-3">
-				<legend class="px-2">Ny vervtype</legend>
-				<div>
-					<label for="title" class="block text-sm/6 font-medium text-gray-900">Tittel</label>
-					<div class="mt-2">
-						<input name="title" id="title" class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6" placeholder="Styremedlem"/>
-					</div>
-				</div>
-				<div>
-					<label for="access" class="block text-sm/6 font-medium text-gray-900">Tilgangsnivå</label>
-					<div class="mt-2 grid grid-cols-1">
-						<select id="access" name="access" class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6">
-							for _, level := range levels {
-								<option value={ fmt.Sprint(level) }>{ fmt.Sprint(level) }</option>
+		<div class="mt-8 flow-root">
+			<div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+				<div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+					<table class="min-w-full divide-y divide-gray-300">
+						<thead>
+							<tr>
+								<th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-3">Tittel</th>
+								<th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-3">Tilgangsnivå</th>
+								<th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-3">
+									<span class="sr-only">Edit</span>
+								</th>
+							</tr>
+						</thead>
+						<tbody class="bg-white">
+							for _, roleType := range roleTypes {
+								<tr class="even:bg-gray-50">
+									<td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-3">{ roleType.Title }</td>
+									<td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-3">{ levelString(roleType.Accesslevel) }</td>
+								</tr>
 							}
-						</select>
-						<svg class="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" data-slot="icon">
-							<path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
-						</svg>
-					</div>
+						</tbody>
+					</table>
 				</div>
-				<button type="submit" class="rounded-md bg-indigo-600 px-2.5 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Ny type</button>
-			</fieldset>
+			</div>
+		</div>
+		<form hx-post="/api/v1/role_type/">
+			<div>
+				<label for="title" class="block text-sm/6 font-medium text-gray-900">Tittel</label>
+				<div class="mt-2">
+					<input name="title" id="title" class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6" placeholder="Styremedlem"/>
+				</div>
+			</div>
+			<div>
+				<label for="access" class="block text-sm/6 font-medium text-gray-900">Tilgangsnivå</label>
+				<div class="mt-2 grid grid-cols-1">
+					<select id="access" name="access" class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pl-3 pr-8 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6">
+						for _, level := range levels {
+							<option value={ fmt.Sprint(level) }>{ fmt.Sprint(level) }</option>
+						}
+					</select>
+					<svg class="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" data-slot="icon">
+						<path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
+					</svg>
+				</div>
+			</div>
+			<button type="submit" class="rounded-md bg-indigo-600 px-2.5 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Ny type</button>
 		</form>
 	}
 }

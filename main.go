@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"os"
 	"strconv"
 	"time"
 
@@ -65,6 +66,15 @@ func (api *API) authHandler(handler http.HandlerFunc) http.HandlerFunc {
 		user, err := api.getUser(r)
 
 		if err != nil {
+			http.SetCookie(w, &http.Cookie{
+				Name:     "redirect_url",
+				Value:    r.URL.Path,
+				Expires:  time.Now().Add(5 * time.Minute),
+				Secure:   true,
+				SameSite: http.SameSiteLaxMode,
+				HttpOnly: true,
+				Path:     "/",
+			})
 			http.Redirect(w, r, "/login/", http.StatusTemporaryRedirect)
 			return
 		}
@@ -74,8 +84,18 @@ func (api *API) authHandler(handler http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func main() {
+func GetAuthUser(ctx context.Context) internal.User {
+	user, ok := ctx.Value("user").(internal.User)
 
+	if !ok {
+		slog.Error("Incorrectly used GetAuthUser outside of auth handler")
+		os.Exit(1)
+	}
+
+	return user
+}
+
+func main() {
 	ctx := context.Background()
 	db, err := pgx.Connect(ctx, "postgresql://postgres:postgres@db/postgres")
 	if err != nil {
@@ -87,7 +107,6 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", api.authHandler(func(w http.ResponseWriter, r *http.Request) {
-		user := r.Context().Value("user").(internal.User)
 
 		stats, err := api.GetUserStats(r.Context())
 		if err != nil {
@@ -95,7 +114,7 @@ func main() {
 			return
 		}
 
-		views.DashboardPage(stats.CurrentCount, stats.CountAMonthAgo, user).Render(r.Context(), w)
+		views.DashboardPage(stats.CurrentCount, stats.CountAMonthAgo).Render(r.Context(), w)
 	}))
 	mux.HandleFunc("/members/", api.authHandler(func(w http.ResponseWriter, r *http.Request) {
 		users, err := api.ListUsers(r.Context())
@@ -103,8 +122,7 @@ func main() {
 			http.Error(w, "Could not list users", 500)
 			return
 		}
-		user := r.Context().Value("user").(internal.User)
-		views.HomePage(users, user).Render(r.Context(), w)
+		views.HomePage(users).Render(r.Context(), w)
 	}))
 
 	mux.HandleFunc("/ny/", func(w http.ResponseWriter, r *http.Request) {
@@ -122,6 +140,7 @@ func main() {
 			_, err = api.GetSessionById(r.Context(), uuid)
 			if err == nil {
 				api.SetSessionLastActive(r.Context(), uuid)
+
 				http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 				return
 			}
@@ -135,7 +154,6 @@ func main() {
 
 		session, err := r.Cookie("session_id")
 		if err == nil {
-
 			var uuid pgtype.UUID
 			err := uuid.Scan(session.Value)
 			uuid.Valid = err == nil
@@ -168,8 +186,7 @@ func main() {
 			return
 		}
 
-		user := r.Context().Value("user").(internal.User)
-		views.RolesPage(roles, role_types, users, user).Render(r.Context(), w)
+		views.RolesPage(roles, role_types, users).Render(r.Context(), w)
 
 	}))
 	mux.HandleFunc("/role_type/", api.authHandler(func(w http.ResponseWriter, r *http.Request) {
@@ -180,9 +197,8 @@ func main() {
 			return
 		}
 
-		user := r.Context().Value("user").(internal.User)
 		levels := internal.AllLevelValues()
-		views.RoleTypesPage(role_types, levels, user).Render(r.Context(), w)
+		views.RoleTypesPage(role_types, levels).Render(r.Context(), w)
 
 	}))
 
@@ -275,7 +291,21 @@ func main() {
 			SameSite: http.SameSiteLaxMode,
 			MaxAge:   int(expires.Sub(time.Now()).Seconds()),
 		})
-		w.Header().Set("HX-Redirect", "/")
+
+		url := "/"
+		redir, err := r.Cookie("redirect_url")
+		if err == nil {
+			url = redir.Value
+			slog.Info("Setting redir val to: " + url)
+		}
+
+		http.SetCookie(w, &http.Cookie{
+			Name:    "redirect_url",
+			Expires: time.Now(),
+			Path:    "/",
+		})
+
+		w.Header().Set("HX-Redirect", url)
 	})
 
 	v1.HandleFunc("POST /newpass/{id}/", func(w http.ResponseWriter, r *http.Request) {
@@ -294,6 +324,15 @@ func main() {
 
 		if err != nil {
 			http.Error(w, "Could not update password", 500)
+		}
+
+		sessions, err := api.GetSessionsForUser(r.Context(), id)
+		if err == nil {
+			slog.Info("Kanskje ingen aktive sessions?")
+		} else {
+			for _, session := range sessions {
+				api.InvalidateSession(r.Context(), session.ID)
+			}
 		}
 
 		json.NewEncoder(w).Encode(user)
