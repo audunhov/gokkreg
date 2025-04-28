@@ -218,27 +218,6 @@ func main() {
 
 	}))
 
-	mux.HandleFunc("/role/{id}/", api.authHandler(func(w http.ResponseWriter, r *http.Request) {
-		id, err := pathToInt32(r, "id")
-		if err != nil {
-			http.Error(w, ":(", 500)
-		}
-		role, err := api.GetRoleById(r.Context(), id)
-		if err != nil {
-			http.Error(w, "Role not found", http.StatusNotFound)
-		}
-		user, err := api.GetUserById(r.Context(), role.Userid)
-		if err != nil {
-			http.Error(w, "Role not found", http.StatusNotFound)
-		}
-		roleType, err := api.GetRoleTypeById(r.Context(), role.Roletypeid)
-		if err != nil {
-			http.Error(w, "Role not found", http.StatusNotFound)
-		}
-		views.RolePage(user, role, roleType).Render(r.Context(), w)
-
-	}))
-
 	v1 := http.NewServeMux()
 	v1.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hei fra API"))

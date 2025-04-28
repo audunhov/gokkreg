@@ -14,9 +14,17 @@ templ Personalia(member internal.User) {
 	<button hx-target="#personalia" type="button" hx-post={ fmt.Sprintf("/medlem/%d/edit/", member.ID) } class="rounded-md bg-indigo-600 px-2.5 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Rediger</button>
 }
 
+templ Card() {
+	<div class="overflow-hidden rounded-lg bg-white shadow">
+		<div id="personalia" class="px-4 py-5 sm:p-6 space-y-3">
+			{ children... }
+		</div>
+	</div>
+}
+
 templ MemberPage(member internal.User, roles []internal.ListRolesWithTypesForUserRow) {
 	@Page(member.Name) {
-		<div>
+		<div class="mb-5">
 			<div class="overflow-hidden rounded-lg bg-white shadow">
 				<div class="border-b border-gray-200 bg-white px-4 py-5 sm:px-6">
 					<h3 class="text-base font-semibold text-gray-900">{ member.Name }</h3>
@@ -27,40 +35,42 @@ templ MemberPage(member internal.User, roles []internal.ListRolesWithTypesForUse
 			</div>
 		</div>
 		if len(roles) > 0 {
-			<div class="flow-root">
-				<h2 class="text-lg py-5">Verv</h2>
-				<ul role="list" class="-mb-8">
-					for _, role := range roles {
-						<li class="group">
-							<div class="relative pb-8">
-								<span class="group-last:hidden absolute left-4 top-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
-								<div class="relative flex space-x-3">
-									<div>
-										<span class="flex size-8 items-center justify-center rounded-full bg-gray-400 ring-8 ring-white">
-											<svg class="size-5 text-white" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
-												<path d="M10 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3.465 14.493a1.23 1.23 0 0 0 .41 1.412A9.957 9.957 0 0 0 10 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 0 0-13.074.003Z"></path>
-											</svg>
-										</span>
-									</div>
-									<div class="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
+			@Card() {
+				<div class="flow-root">
+					<h2 class="text-lg pb-5">Verv</h2>
+					<ul role="list" class="-mb-8">
+						for _, role := range roles {
+							<li class="group">
+								<div class="relative pb-8">
+									<span class="group-last:hidden absolute left-4 top-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
+									<div class="relative flex space-x-3">
 										<div>
-											<p class="text-sm text-gray-500">{ role.Title }</p>
+											<span class="flex size-8 items-center justify-center rounded-full bg-gray-400 ring-8 ring-white">
+												<svg class="size-5 text-white" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+													<path d="M10 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3.465 14.493a1.23 1.23 0 0 0 .41 1.412A9.957 9.957 0 0 0 10 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 0 0-13.074.003Z"></path>
+												</svg>
+											</span>
 										</div>
-										<div class="whitespace-nowrap text-right text-sm text-gray-500">
-											<time datetime="2020-09-20">
-												{ role.Createdat.Time.Format("01.02.2006") } - 
-												if role.Finishedat.Valid {
-													{ role.Finishedat.Time.Format("01.02.2006") }
-												}
-											</time>
+										<div class="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
+											<div>
+												<p class="text-sm text-gray-500">{ role.Title }</p>
+											</div>
+											<div class="whitespace-nowrap text-right text-sm text-gray-500">
+												<time datetime="2020-09-20">
+													{ role.Createdat.Time.Format("01.02.2006") } - 
+													if role.Finishedat.Valid {
+														{ role.Finishedat.Time.Format("01.02.2006") }
+													}
+												</time>
+											</div>
 										</div>
 									</div>
 								</div>
-							</div>
-						</li>
-					}
-				</ul>
-			</div>
+							</li>
+						}
+					</ul>
+				</div>
+			}
 		}
 	}
 }

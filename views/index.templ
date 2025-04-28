@@ -64,67 +64,69 @@ templ Page(title string) {
 templ HomePage(users []internal.User) {
 	@Page("Home") {
 		<div>
-			<div class="sm:flex sm:items-center">
-				<div class="sm:flex-auto">
-					<h1 class="text-base font-semibold text-gray-900">Medlemmer</h1>
-					<p class="mt-2 text-sm text-gray-700">Alle medlemmer i Gamle Oslo Kaffe og Koding</p>
+			@Card() {
+				<div class="sm:flex sm:items-center">
+					<div class="sm:flex-auto">
+						<h1 class="text-base font-semibold text-gray-900">Medlemmer</h1>
+						<p class="mt-2 text-sm text-gray-700">Alle medlemmer i Gamle Oslo Kaffe og Koding</p>
+					</div>
+					<div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+						<button type="button" _="on click call #add-member-modal.showModal()" class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Nytt medlem</button>
+					</div>
+					<dialog _="on closeModal call me.close()" id="add-member-modal" class="rounded-2xl w-full max-w-screen-sm m-auto p-5">
+						<header>
+							<h1>Legg til nytt medlem</h1>
+							<button type="button" _="on click trigger closeModal">X</button>
+						</header>
+						<form hx-post="/api/v1/user/" class="grid gap-3">
+							<label for="name">Navn</label>
+							<input id="name" name="name"/>
+							<label for="phone">Tlf</label>
+							<input id="phone" name="phone"/>
+							<label for="email">Epost</label>
+							<input id="email" name="email"/>
+							<label for="birthdate">Bursdag</label>
+							<input id="birthdate" name="birthdate" type="date"/>
+							<button type="cancel" _="on click trigger closeModal" class="w-max p-2 hover:bg-gray-200 outline-1 outline-gray-300 rounded-md cursor-pointer">Avbryt</button>
+							<button type="submit" class="w-max p-2 bg-blue-600 hover:bg-blue-400 rounded-md cursor-pointer text-white">Ny bruker</button>
+						</form>
+					</dialog>
 				</div>
-				<div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-					<button type="button" _="on click call #add-member-modal.showModal()" class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Nytt medlem</button>
-				</div>
-				<dialog _="on closeModal call me.close()" id="add-member-modal" class="rounded-2xl w-full max-w-screen-sm m-auto p-5">
-					<header>
-						<h1>Legg til nytt medlem</h1>
-						<button type="button" _="on click trigger closeModal">X</button>
-					</header>
-					<form hx-post="/api/v1/user/" class="grid gap-3">
-						<label for="name">Navn</label>
-						<input id="name" name="name"/>
-						<label for="phone">Tlf</label>
-						<input id="phone" name="phone"/>
-						<label for="email">Epost</label>
-						<input id="email" name="email"/>
-						<label for="birthdate">Bursdag</label>
-						<input id="birthdate" name="birthdate" type="date"/>
-						<button type="cancel" _="on click trigger closeModal" class="w-max p-2 hover:bg-gray-200 outline-1 outline-gray-300 rounded-md cursor-pointer">Avbryt</button>
-						<button type="submit" class="w-max p-2 bg-blue-600 hover:bg-blue-400 rounded-md cursor-pointer text-white">Ny bruker</button>
-					</form>
-				</dialog>
-			</div>
-			<div class="mt-8 flow-root">
-				<div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-					<div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-						<table class="min-w-full divide-y divide-gray-300">
-							<thead>
-								<tr>
-									<th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-3">Navn</th>
-									<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Telefon</th>
-									<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Email</th>
-									<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Bursdag</th>
-									<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Innmeldt</th>
-									<th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-3">
-										<span class="sr-only">Edit</span>
-									</th>
-								</tr>
-							</thead>
-							<tbody class="bg-white">
-								for _, user := range users {
-									<tr class="even:bg-gray-50">
-										<td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-3">{ user.Name }</td>
-										<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ user.Phone.String }</td>
-										<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ user.Email }</td>
-										<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ user.Birthday.Time.Format("01.02.2006") }</td>
-										<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ user.Createdat.Time.Format("01.02.2006") }</td>
-										<td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-3">
-											<a href={ templ.SafeURL(fmt.Sprintf("/medlem/%d/", user.ID)) } class="text-indigo-600 hover:text-indigo-900">Profil<span class="sr-only">, { user.Name }</span></a>
-										</td>
+				<div class="mt-8 flow-root">
+					<div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+						<div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+							<table class="min-w-full divide-y divide-gray-300">
+								<thead>
+									<tr>
+										<th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-3">Navn</th>
+										<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Telefon</th>
+										<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Email</th>
+										<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Bursdag</th>
+										<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Innmeldt</th>
+										<th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-3">
+											<span class="sr-only">Edit</span>
+										</th>
 									</tr>
-								}
-							</tbody>
-						</table>
+								</thead>
+								<tbody class="bg-white">
+									for _, user := range users {
+										<tr class="even:bg-gray-50">
+											<td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-3">{ user.Name }</td>
+											<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ user.Phone.String }</td>
+											<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ user.Email }</td>
+											<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ user.Birthday.Time.Format("01.02.2006") }</td>
+											<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ user.Createdat.Time.Format("01.02.2006") }</td>
+											<td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-3">
+												<a href={ templ.SafeURL(fmt.Sprintf("/medlem/%d/", user.ID)) } class="text-indigo-600 hover:text-indigo-900">Profil<span class="sr-only">, { user.Name }</span></a>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
 					</div>
 				</div>
-			</div>
+			}
 		</div>
 	}
 }
